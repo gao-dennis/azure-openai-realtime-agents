@@ -1,74 +1,40 @@
-# Realtime API Agents Demo
+# Azure OpenAI Realtime API Agents Demo
 
-This is a demonstration of more advanced patterns for voice agents, using the OpenAI Realtime API and the OpenAI Agents SDK. 
+This is a demonstration of advanced patterns for voice agents, adapted to work with **Azure OpenAI Realtime API** and the OpenAI Agents SDK. This version maintains full compatibility with Azure OpenAI services while providing the same advanced agentic patterns.
 
-** NOTE:** For a version that does not use the OpenAI Agents SDK, see the [branch without-agents-sdk](https://github.com/openai/openai-realtime-agents/tree/without-agents-sdk).
+**NOTE:** This is based on the [openai-realtime-agents](https://github.com/openai/openai-realtime-agents) repository but modified for Azure OpenAI compatibility.
 
-There are two main patterns demonstrated:
-1. **Chat-Supervisor:** A realtime-based chat agent interacts with the user and handles basic tasks, while a more intelligent, text-based supervisor model (e.g., `gpt-4.1`) is used extensively for tool calls and more complex responses. This approach provides an easy onramp and high-quality answers, with a small increase in latency.
-2. **Sequential Handoff:** Specialized agents (powered by realtime api) transfer the user between them to handle specific user intents. This is great for customer service, where user intents can be handled sequentially by specialist models that excel in a specific domains. This helps avoid the model having all instructions and tools in a single agent, which can degrade performance.
+There is one main pattern demonstrated:
+1. **Sequential Handoff:** Specialized agents (powered by Azure OpenAI realtime api) transfer the user between them to handle specific user intents. This is great for customer service, where user intents can be handled sequentially by specialist models that excel in specific domains. This helps avoid the model having all instructions and tools in a single agent, which can degrade performance.
 
 ## Setup
 
 - This is a Next.js typescript app. Install dependencies with `npm i`.
-- Add your `OPENAI_API_KEY` to your env. Either add it to your `.bash_profile` or equivalent, or copy `.env.sample` to `.env` and add it there.
+- **Azure OpenAI Configuration**: Add your Azure OpenAI credentials to your environment:
+  ```bash
+  AZURE_OPENAI_API_KEY=your_azure_openai_api_key
+  AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com/
+  AZURE_OPENAI_API_VERSION=2025-04-01-preview
+  AZURE_OPENAI_DEPLOYMENT=gpt-4.1  # Your deployment name for text completions
+  ```
+  You can either add these to your `.bash_profile` or copy `.env.sample` to `.env` and add them there.
 - Start the server with `npm run dev`
-- Open your browser to [http://localhost:3000](http://localhost:3000). It should default to the `chatSupervisor` Agent Config.
+- Open your browser to [http://localhost:3000](http://localhost:3000). It will default to the `simpleHandoff` Agent Config.
 - You can change examples via the "Scenario" dropdown in the top right.
 
-# Agentic Pattern 1: Chat-Supervisor
+## Azure OpenAI Models
 
-This is demonstrated in the [chatSupervisor](src/app/agentConfigs/chatSupervisor/index.ts) Agent Config. The chat agent uses the realtime model to converse with the user and handle basic tasks, like greeting the user, casual conversation, and collecting information, and a more intelligent, text-based supervisor model (e.g. `gpt-4.1`) is used extensively to handle tool calls and more challenging responses. You can control the decision boundary by "opting in" specific tasks to the chat agent as desired.
+This demo uses the following Azure OpenAI models:
+- **Realtime Model**: `gpt-4o-mini-realtime-preview` for voice interactions
+- **Text Completion**: Your deployed model (specified in `AZURE_OPENAI_DEPLOYMENT`) for guardrails and complex reasoning
+- **Transcription**: `whisper-1` for audio transcription
 
-Video walkthrough: [https://x.com/noahmacca/status/1927014156152058075](https://x.com/noahmacca/status/1927014156152058075)
+## Available Scenarios
 
-## Example
-![Screenshot of the Chat Supervisor Flow](/public/screenshot_chat_supervisor.png)
-*In this exchange, note the immediate response to collect the phone number, and the deferral to the supervisor agent to handle the tool call and formulate the response. There ~2s between the end of "give me a moment to check on that." being spoken aloud and the start of the "Thanks for waiting. Your last bill...".*
+1. **Simple Handoff**: Basic agent transfer demonstration between a greeter and haiku writer
+2. **Customer Service Retail**: Complex multi-agent customer service flow with authentication, returns, and sales agents
 
-## Schematic
-```mermaid
-sequenceDiagram
-    participant User
-    participant ChatAgent as Chat Agent<br/>(gpt-4o-realtime-mini)
-    participant Supervisor as Supervisor Agent<br/>(gpt-4.1)
-    participant Tool as Tool
-
-    alt Basic chat or info collection
-        User->>ChatAgent: User message
-        ChatAgent->>User: Responds directly
-    else Requires higher intelligence and/or tool call
-        User->>ChatAgent: User message
-        ChatAgent->>User: "Let me think"
-        ChatAgent->>Supervisor: Forwards message/context
-        alt Tool call needed
-            Supervisor->>Tool: Calls tool
-            Tool->>Supervisor: Returns result
-        end
-        Supervisor->>ChatAgent: Returns response
-        ChatAgent->>User: Delivers response
-    end
-```
-
-## Benefits
-- **Simpler onboarding.** If you already have a performant text-based chat agent, you can give that same prompt and set of tools to the supervisor agent, and make some tweaks to the chat agent prompt, you'll have a natural voice agent that will perform on par with your text agent.
-- **Simple ramp to a full realtime agent**: Rather than switching your whole agent to the realtime api, you can move one task at a time, taking time to validate and build trust for each before deploying to production.
-- **High intelligence**: You benefit from the high intelligence, excellent tool calling and instruction following of models like `gpt-4.1` in your voice agents.
-- **Lower cost**: If your chat agent is only being used for basic tasks, you can use the realtime-mini model, which, even when combined with GPT-4.1, should be cheaper than using the full 4o-realtime model.
-- **User experience**: It's a more natural conversational experience than using a stitched model architecture, where response latency is often 1.5s or longer after a user has finished speaking. In this architecture, the model responds to the user right away, even if it has to lean on the supervisor agent.
-  - However, more assistant responses will start with "Let me think", rather than responding immediately with the full response.
-
-## Modifying for your own agent
-1. Update [supervisorAgent](src/app/agentConfigs/chatSupervisorDemo/supervisorAgent.ts).
-  - Add your existing text agent prompt and tools if you already have them. This should contain the "meat" of your voice agent logic and be very specific with what it should/shouldn't do and how exactly it should respond. Add this information below `==== Domain-Specific Agent Instructions ====`.
-  - You should likely update this prompt to be more appropriate for voice, for example with instructions to be concise and avoiding long lists of items.
-2. Update [chatAgent](src/app/agentConfigs/chatSupervisor/index.ts).
-  - Customize the chatAgent instructions with your own tone, greeting, etc.
-  - Add your tool definitions to `chatAgentInstructions`. We recommend a brief yaml description rather than json to ensure the model doesn't get confused and try calling the tool directly.
-  - You can modify the decision boundary by adding new items to the `# Allow List of Permitted Actions` section.
-3. To reduce cost, try using `gpt-4o-mini-realtime` for the chatAgent and/or `gpt-4.1-mini` for the supervisor model. To maximize intelligence on particularly difficult or high-stakes tasks, consider trading off latency and adding chain-of-thought to your supervisor prompt, or using an additional reasoning model-based supervisor that uses `o4-mini`.
-
-# Agentic Pattern 2: Sequential Handoffs
+# Agentic Pattern: Sequential Handoffs
 
 This pattern is inspired by [OpenAI Swarm](https://github.com/openai/swarm) and involves the sequential handoff of a user between specialized agents. Handoffs are decided by the model and coordinated via tool calls, and possible handoffs are defined explicitly in an agent graph. A handoff triggers a session.update event with new instructions and tools. This pattern is effective for handling a variety of user intents with specialist agents, each of which might have long instructions and numerous tools.
 
@@ -77,7 +43,7 @@ Here's a [video walkthrough](https://x.com/OpenAIDevs/status/1880306081517432936
 ![Screenshot of the Realtime API Agents Demo](/public/screenshot_handoff.png)
 *In this simple example, the user is transferred from a greeter agent to a haiku agent. See below for the simple, full configuration of this flow.*
 
-Configuration in `src/app/agentConfigs/simpleExample.ts`
+Configuration in `src/app/agentConfigs/simpleHandoff.ts`
 ```typescript
 import { RealtimeAgent } from '@openai/agents/realtime';
 
@@ -146,19 +112,19 @@ sequenceDiagram
     participant User
     participant WebClient as Next.js Client
     participant NextAPI as /api/session
-    participant RealtimeAPI as OpenAI Realtime API
+    participant RealtimeAPI as Azure OpenAI Realtime API
     participant AgentManager as Agents (authentication, returns, sales, simulatedHuman)
     participant o1mini as "o4-mini" (Escalation Model)
 
     Note over WebClient: User navigates to ?agentConfig=customerServiceRetail
     User->>WebClient: Open Page
     WebClient->>NextAPI: GET /api/session
-    NextAPI->>RealtimeAPI: POST /v1/realtime/sessions
+    NextAPI->>RealtimeAPI: POST /openai/realtimeapi/sessions (Azure endpoint)
     RealtimeAPI->>NextAPI: Returns ephemeral session
     NextAPI->>WebClient: Returns ephemeral token (JSON)
 
-    Note right of WebClient: Start RTC handshake
-    WebClient->>RealtimeAPI: Offer SDP (WebRTC)
+    Note right of WebClient: Start RTC handshake to Azure OpenAI
+    WebClient->>RealtimeAPI: Offer SDP (WebRTC to eastus2.realtimeapi-preview.ai.azure.com)
     RealtimeAPI->>WebClient: SDP answer
     WebClient->>WebClient: DataChannel "oai-events" established
 
@@ -181,7 +147,7 @@ sequenceDiagram
     returns->>AgentManager: function_call => checkEligibilityAndPossiblyInitiateReturn
     AgentManager-->>WebClient: function_call => name="checkEligibilityAndPossiblyInitiateReturn"
 
-    Note over WebClient: The WebClient calls /api/chat/completions with model="o4-mini"
+    Note over WebClient: The WebClient calls /api/responses with Azure deployment model
     WebClient->>o1mini: "Is this item eligible for return?"
     o1mini->>WebClient: "Yes/No (plus notes)"
 
@@ -192,6 +158,41 @@ sequenceDiagram
 ```
 
 </details>
+
+# Azure OpenAI Integration
+
+## Key Differences from Standard OpenAI
+
+This implementation is specifically adapted for Azure OpenAI services:
+
+### **Endpoints**
+- **Session API**: `https://your-resource.openai.azure.com/openai/realtimeapi/sessions`
+- **WebRTC**: `https://eastus2.realtimeapi-preview.ai.azure.com/v1/realtimertc`
+- **Text Completions**: Uses your Azure OpenAI deployment via `/api/responses`
+
+### **Authentication**
+- Uses `AZURE_OPENAI_API_KEY` instead of `OPENAI_API_KEY`
+- Requires Azure-specific endpoint and API version configuration
+- Supports Azure OpenAI deployment model names
+
+### **Models Used**
+- **Realtime**: `gpt-4o-mini-realtime-preview` (Azure OpenAI)
+- **Text**: Your Azure deployment model (configurable)
+- **Transcription**: `whisper-1` (supported on Azure)
+
+### **Architecture Updates**
+- Modern React hooks-based architecture (`useRealtimeSession`, `useHandleSessionHistory`)
+- Enhanced audio codec support with browser compatibility fallbacks
+- Improved session management and error handling
+- Better TypeScript integration
+
+## Browser Compatibility
+
+Enhanced MediaRecorder support with automatic fallbacks:
+- **Chrome/Edge**: `audio/webm;codecs=opus` (best quality)
+- **Firefox**: `audio/ogg;codecs=opus`
+- **Safari**: `audio/mp4` fallback
+- **Universal**: `audio/wav` as final fallback
 
 # Other Info
 ## Next Steps
@@ -212,7 +213,17 @@ Assistant messages are checked for safety and compliance before they are shown i
 
 Feel free to open an issue or pull request and we'll do our best to review it. The spirit of this repo is to demonstrate the core logic for new agentic flows; PRs that go beyond this core scope will likely not be merged.
 
-# Core Contributors
+# Credits
+
+## Original OpenAI Realtime Agents
+This project is based on the [openai-realtime-agents](https://github.com/openai/openai-realtime-agents) repository.
+
+**Original Contributors:**
 - Noah MacCallum - [noahmacca](https://x.com/noahmacca)
 - Ilan Bigio - [ibigio](https://github.com/ibigio)
 - Brian Fioca - [bfioca](https://github.com/bfioca)
+
+## Azure OpenAI Adaptation
+- Adapted for Azure OpenAI compatibility with modern hooks architecture
+- Enhanced browser compatibility and error handling
+- Updated to latest OpenAI Agents SDK (`@openai/agents ^0.0.5`)

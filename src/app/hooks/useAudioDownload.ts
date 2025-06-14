@@ -1,11 +1,13 @@
 import { useRef } from "react";
-import { convertWebMBlobToWav } from "../lib/audioUtils";
+import { convertAudioBlobToWav } from "../lib/audioUtils";
 
 function useAudioDownload() {
   // Ref to store the MediaRecorder instance.
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   // Ref to collect all recorded Blob chunks.
   const recordedChunksRef = useRef<Blob[]>([]);
+  // Ref to store the selected mimeType for later use.
+  const mimeTypeRef = useRef<string>("");
 
   /**
    * Starts recording by combining the provided remote stream with
@@ -42,8 +44,25 @@ function useAudioDownload() {
       console.error("Error connecting microphone stream to the audio context:", err);
     }
 
-    const options = { mimeType: "audio/webm" };
+    // Try different mimeTypes in order of preference, with fallbacks for browser compatibility
+    const mimeTypes = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4",
+      "audio/ogg;codecs=opus",
+      "audio/wav"
+    ];
+
+    let selectedMimeType = "";
+    for (const mimeType of mimeTypes) {
+      if (MediaRecorder.isTypeSupported(mimeType)) {
+        selectedMimeType = mimeType;
+        break;
+      }
+    }
+
     try {
+      const options = selectedMimeType ? { mimeType: selectedMimeType } : {};
       const mediaRecorder = new MediaRecorder(destination.stream, options);
       mediaRecorder.ondataavailable = (event: BlobEvent) => {
         if (event.data && event.data.size > 0) {
@@ -53,6 +72,8 @@ function useAudioDownload() {
       // Start recording without a timeslice.
       mediaRecorder.start();
       mediaRecorderRef.current = mediaRecorder;
+      mimeTypeRef.current = selectedMimeType || "audio/webm"; // Store for later use
+      console.log(`Recording started with mimeType: ${selectedMimeType || 'default'}`);
     } catch (err) {
       console.error("Error starting MediaRecorder with combined stream:", err);
     }
@@ -88,12 +109,12 @@ function useAudioDownload() {
       return;
     }
     
-    // Combine the recorded chunks into a single WebM blob.
-    const webmBlob = new Blob(recordedChunksRef.current, { type: "audio/webm" });
+    // Combine the recorded chunks into a single blob using the recorded mimeType.
+    const recordedBlob = new Blob(recordedChunksRef.current, { type: mimeTypeRef.current });
 
     try {
-      // Convert the WebM blob into a WAV blob.
-      const wavBlob = await convertWebMBlobToWav(webmBlob);
+      // Convert the recorded blob into a WAV blob.
+      const wavBlob = await convertAudioBlobToWav(recordedBlob);
       const url = URL.createObjectURL(wavBlob);
 
       // Generate a formatted datetime string (replace characters not allowed in filenames).

@@ -3,6 +3,8 @@ import { returnsAgent } from './returns';
 import { salesAgent } from './sales';
 import { simulatedHumanAgent } from './simulatedHuman';
 
+export const customerServiceRetailCompanyName = "Snowy Peak Boards";
+
 // Cast to `any` to satisfy TypeScript until the core types make RealtimeAgent
 // assignable to `Agent<unknown>` (current library versions are invariant on
 // the context type).

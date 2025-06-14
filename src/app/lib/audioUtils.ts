@@ -59,9 +59,9 @@ export function encodeWAV(samples: Float32Array, sampleRate: number): ArrayBuffe
 }
 
 /**
- * Converts a WebM audio blob to a WAV blob.
+ * Converts any supported audio blob (WebM, MP4, OGG, etc.) to a WAV blob.
  */
-export async function convertWebMBlobToWav(blob: Blob): Promise<Blob> {
+export async function convertAudioBlobToWav(blob: Blob): Promise<Blob> {
   const arrayBuffer = await blob.arrayBuffer();
   const audioContext = new AudioContext();
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
@@ -81,4 +81,7 @@ export async function convertWebMBlobToWav(blob: Blob): Promise<Blob> {
   }
   const wavBuffer = encodeWAV(combined, audioBuffer.sampleRate);
   return new Blob([wavBuffer], { type: "audio/wav" });
-} 
+}
+
+// Backward compatibility export
+export const convertWebMBlobToWav = convertAudioBlobToWav; 

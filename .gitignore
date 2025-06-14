@@ -28,14 +28,59 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Ignore all env files except .env.sample
-.env
+# Environment variables (contains sensitive Azure OpenAI keys)
+.env*
+!.env.sample
+!.env.local.example
 
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# vercel
+# Logs
+*.log
+logs/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Vercel
 .vercel
 
-# typescript
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Temporary files
+*.tmp
+*.temp
 todo.md
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Audio recordings (if any are generated during development)
+*.wav
+*.mp3
+*.webm
+recordings/
